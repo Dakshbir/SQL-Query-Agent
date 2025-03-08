@@ -1,18 +1,18 @@
 [
   {
-    "IncorrectQuery": "SELECT * FROM campaigns",
-    "CorrectQuery": "SELECT * FROM campaigns WHERE campaign_status = 'active';\n\nThe original query selects all records from the campaigns table without any conditions. The corrected query selects all records from the campaigns table where the campaign_status column is equal to 'active'. This assumes that you are interested in only the active campaigns. If you want to see all campaigns regardless of their status, then you can simply use the original query."
+    "IncorrectQuery": "SELECT * FROM campaigns JOIN inventory ON campaigns.campaign_id = inventory.stock_status",
+    "CorrectQuery": "I believe you meant to join the `orders` table instead of the `campaigns` table in the ON clause. Here's the corrected SQL query:\n\n```sql\nSELECT *\nFROM campaigns\nJOIN inventory\nON campaigns.campaign_id = inventory.campaign_id;\n```\n\nHowever, if you indeed wanted to join the `campaigns` table with the `inventory` table using the `stock_status` column, you might have meant to use a subquery or a different relationship between the tables. In this case, there is no direct relationship between the `campaigns` and `inventory` tables based on the provided schema, so I cannot provide an accurate SQL query. Please double-check the relationship between the tables and the column names in your natural language query."
   },
   {
     "IncorrectQuery": "SELECT * FROM campaigns",
-    "CorrectQuery": "SELECT * FROM campaigns WHERE campaign_status = 'active';\n\nThe original query selects all records from the campaigns table without any conditions. The corrected query selects all records from the campaigns table where the campaign_status column is equal to 'active'. This assumes that you are interested in only the active campaigns. If you want to see all campaigns regardless of their status, then you can simply use the original query."
+    "CorrectQuery": "Sure, here is the SQL query for your natural language query:\n```sql\nSELECT * FROM campaigns;\n```\nThis query will return all columns and rows from the `campaigns` table."
   },
   {
-    "IncorrectQuery": "SELECT * FROM campaigns",
-    "CorrectQuery": "SELECT * FROM campaigns WHERE campaign_status = 'active';\n\nThe original query selects all records from the campaigns table without any conditions. The corrected query selects all records from the campaigns table where the campaign_status column is equal to 'active'. This assumes that you are interested in only the active campaigns. If you want to see all campaigns regardless of their status, then you can simply use the original query."
+    "IncorrectQuery": "SELECT * FROM campaigns WHERE campaign_id = campaign_id INNER JOIN inventory ON campaigns.campaign_id=inventory.supplier_id",
+    "CorrectQuery": "The correct SQL query for the given natural language query would be:\n\n```sql\nSELECT *\nFROM campaigns\nINNER JOIN inventory ON campaigns.campaign_id = inventory.supplier_id\nWHERE campaigns.campaign_id = campaigns.campaign_id;\n```\n\nHowever, the WHERE clause in this query is redundant and can be removed. The correct query would be:\n\n```sql\nSELECT *\nFROM campaigns\nINNER JOIN inventory ON campaigns.campaign_id = inventory.supplier_id;\n```"
   },
   {
-    "IncorrectQuery": "SELECT * FROM campaigns",
-    "CorrectQuery": "SELECT * FROM campaigns WHERE campaign_status = 'active';\n\nThe original query selects all records from the campaigns table without any conditions. The corrected query selects all records from the campaigns table where the campaign_status column is equal to 'active'. This assumes that you are interested in only the active campaigns. If you want to see all campaigns regardless of their status, then you can simply use the original query."
+    "IncorrectQuery": "SELECT * FROM campaigns c JOIN inventory i ON c.campaign_id = i.referenced_product_id WHERE c.campaign_status = 'active' AND i.stock_status = 'low' ORDER BY c.campaign_id = 'desc';",
+    "CorrectQuery": "The SQL query you provided is already accurate and correctly translates the given natural language query. Here it is again for clarity:\n\n```sql\nSELECT *\nFROM campaigns c\nJOIN inventory i ON c.campaign_id = i.referenced_product_id\nWHERE c.campaign_status = 'active' AND i.stock_status = 'low'\nORDER BY c.campaign_id DESC;\n```\n\nThis query will return all columns from both the `campaigns` and `inventory` tables, filtered by campaigns with an `active` status and inventory with a `low` stock status, and ordered by the `campaign_id` in descending order."
   }
 ]

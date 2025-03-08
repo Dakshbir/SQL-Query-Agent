@@ -1,6 +1,6 @@
 [
   {
-    "IncorrectQuery": "SELECT * FROM campaigns",
+    "IncorrectQuery": "SELECT * FROM campaigns JOIN inventory ON campaigns.campaign_id = inventory.stock_status",
     "CorrectQuery": "SELECT * FROM campaigns"
   },
   {
@@ -8,11 +8,11 @@
     "CorrectQuery": "SELECT * FROM campaigns"
   },
   {
-    "IncorrectQuery": "SELECT * FROM campaigns",
+    "IncorrectQuery": "SELECT * FROM campaigns WHERE campaign_id = campaign_id INNER JOIN inventory ON campaigns.campaign_id=inventory.supplier_id",
     "CorrectQuery": "SELECT * FROM campaigns"
   },
   {
-    "IncorrectQuery": "SELECT * FROM campaigns",
+    "IncorrectQuery": "SELECT * FROM campaigns c JOIN inventory i ON c.campaign_id = i.referenced_product_id WHERE c.campaign_status = 'active' AND i.stock_status = 'low' ORDER BY c.campaign_id = 'desc';",
     "CorrectQuery": "SELECT * FROM campaigns"
   }
 ]

@@ -2,3 +2,9 @@ psycopg2-binary
 python-dotenv
 Flask
 requests
+sqlparse
+numpy
+sentence_transformers
+rake_nltk
+flask[async]
+groq
