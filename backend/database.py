@@ -1,6 +1,6 @@
-
 import psycopg2
 from psycopg2 import sql
+import os
 
 def create_tables_from_sql_file(sql_file_path, db_name, user, password, host='localhost', port='5432'):
     # Connect to PostgreSQL server
@@ -9,7 +9,7 @@ def create_tables_from_sql_file(sql_file_path, db_name, user, password, host='lo
     cursor = conn.cursor()
 
     # Read SQL file
-    with open(sql_file_path, 'r') as file:
+    with open(sql_file_path, 'r', encoding='utf-8') as file:
         sql_commands = file.read()
 
     # Execute SQL commands
@@ -40,17 +40,17 @@ def list_all_tables(db_name, user, password, host='localhost', port='5432'):
     conn.close()
     return [table[0] for table in tables]
 
-# Get table schema
+# Get table schema - FIXED: Using parameterized query to prevent SQL injection
 def get_table_schema(db_name, user, password, host='localhost', port='5432', table_name=''):
     conn = psycopg2.connect(dbname=db_name, user=user, password=password, host=host, port=port)
     cursor = conn.cursor()
-    cursor.execute(f"SELECT column_name, data_type FROM information_schema.columns WHERE table_name = '{table_name}'")
+    cursor.execute("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = %s", (table_name,))
     columns = cursor.fetchall()
     cursor.close()
     conn.close()
     return {col[0]: col[1] for col in columns}
 
-# Function to delete all tables
+# Function to delete all tables - FIXED: Using proper SQL identifiers
 def delete_all_tables(db_name, user, password, host='localhost', port='5432'):
     conn = psycopg2.connect(dbname=db_name, user=user, password=password, host=host, port=port)
     conn.autocommit = True
@@ -64,7 +64,7 @@ def delete_all_tables(db_name, user, password, host='localhost', port='5432'):
     tables = cursor.fetchall()
     
     for table in tables:    
-        cursor.execute(f"DROP TABLE IF EXISTS {table[0]} CASCADE")
+        cursor.execute(sql.SQL("DROP TABLE IF EXISTS {} CASCADE").format(sql.Identifier(table[0])))
         print(f"Dropped table: {table[0]}")
         print(" -------------------------------- ")
         
@@ -76,7 +76,7 @@ def delete_all_tables(db_name, user, password, host='localhost', port='5432'):
     ]
     
     for enum in enums_to_delete:
-        cursor.execute(f"DROP TYPE IF EXISTS {enum}")
+        cursor.execute(sql.SQL("DROP TYPE IF EXISTS {}").format(sql.Identifier(enum)))
         print(f"Dropped enum: {enum}")
         print(" -------------------------------- ")
         
@@ -88,9 +88,20 @@ if __name__ == "__main__":
     db_name = 'postgres'
     user = 'postgres'
     password = 'Daksh@0708'
-    sql_file_path = "C:\\Users\\user\\Downloads\\hackathon_database_iitd.sql"
-
-    # Run this to get started !
-    create_tables_from_sql_file(sql_file_path, db_name, user, password)
     
-    #delete_all_tables(db_name, user, password)
+    # Use relative paths for the SQL files
+    schema_file_path = os.path.join(os.path.dirname(__file__), "sample_database_schema.sql")
+    data_file_path = os.path.join(os.path.dirname(__file__), "sample_data.sql")
+
+    print("Creating database schema...")
+    create_tables_from_sql_file(schema_file_path, db_name, user, password)
+    
+    print("\nInserting sample data...")
+    create_tables_from_sql_file(data_file_path, db_name, user, password)
+    
+    print("\nListing all tables:")
+    tables = list_all_tables(db_name, user, password)
+    for table in tables:
+        print(f"- {table}")
+    
+    print(f"\nTotal tables created: {len(tables)}")
