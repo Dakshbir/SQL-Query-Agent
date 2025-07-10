@@ -57,7 +57,7 @@ _schema_cache: dict | None = None
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 def load_db_schema(force_reload: bool = False) -> dict:
-    """Load database schema with proper error handling - SINGLE DEFINITION"""
+    """Load database schema with proper error handling"""
     global _schema_cache
     if _schema_cache and not force_reload:
         return _schema_cache
@@ -117,17 +117,26 @@ def relevant_schema(nl: str) -> str:
         schema = load_db_schema()
         return "\n".join(f"Table {t} columns: {', '.join(c)}" for t, c in schema.items())
 
-@app.route("/api/health", methods=["GET"])
-def health():
-    """Enhanced health check with detailed status"""
-    return jsonify(
-        status="ok",
-        groq_ready=bool(client.api_key),
-        database_ready=bool(DATABASE_URL),
-        database_connected=bool(_schema_cache),  # Check if schema loaded
-        timestamp=time.time(),
-    )
+def ask_groq(prompt: str) -> str | None:
+    """Make request to Groq API with proper error handling"""
+    try:
+        resp = client.chat.completions.create(
+            model="llama3-70b-8192",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0,
+            max_tokens=500,
+        )
+        
+        # Correct way to access the response
+        if resp.choices and len(resp.choices) > 0:
+            return resp.choices.message.content
+        else:
+            logging.error("No choices in Groq API response")
+            return None
 
+    except Exception as e:
+        logging.error(f"Groq API error: {e}")
+        return None
 
 def nl_to_sql(nl: str) -> str | None:
     schema_txt = relevant_schema(nl)
@@ -179,10 +188,12 @@ def root():
 
 @app.route("/api/health", methods=["GET"])
 def health():
+    """Single health check endpoint with comprehensive status"""
     return jsonify(
         status="ok",
         groq_ready=bool(client.api_key),
         database_ready=bool(DATABASE_URL),
+        database_connected=bool(_schema_cache),
         nltk_free=True,
         timestamp=time.time(),
     )
