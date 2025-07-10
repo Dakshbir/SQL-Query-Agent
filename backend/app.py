@@ -1,14 +1,12 @@
-
 import os
 import json
 import time
 import logging
 import sqlparse
+import re
 from dotenv import load_dotenv
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from rake_nltk import Rake
-import nltk
 
 # ------------------------------------------------------------------#
 #  1. ENV & LIB SET-UP                                              #
@@ -16,79 +14,53 @@ import nltk
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
-# Enhanced NLTK setup with error handling
-def setup_nltk():
-    """Setup NLTK with proper error handling and retries"""
-    try:
-        # Ensure NLTK data directory exists
-        nltk_data_dir = '/root/nltk_data'
-        if not os.path.exists(nltk_data_dir):
-            os.makedirs(nltk_data_dir, exist_ok=True)
-        
-        # Download required packages with retries
-        packages = ['stopwords', 'punkt']
-        for package in packages:
-            try:
-                nltk.data.find(f'tokenizers/{package}')
-                logging.info(f"NLTK package {package} already available")
-            except LookupError:
-                logging.info(f"Downloading NLTK package: {package}")
-                nltk.download(package, quiet=True)
-                time.sleep(1)  # Brief pause between downloads
-        
-        # Verify punkt tokenizer is working
-        from nltk.tokenize import sent_tokenize
-        test_text = "This is a test sentence. This is another sentence."
-        sentences = sent_tokenize(test_text)
-        logging.info(f"NLTK tokenizer test successful: {len(sentences)} sentences")
-        
-        return True
-    except Exception as e:
-        logging.error(f"NLTK setup failed: {e}")
-        return False
+# Remove NLTK/RAKE imports and initialization
+# from rake_nltk import Rake
+# import nltk
 
-# Initialize NLTK with retries
-nltk_ready = False
-for attempt in range(3):
-    if setup_nltk():
-        nltk_ready = True
-        break
-    else:
-        logging.warning(f"NLTK setup attempt {attempt + 1} failed, retrying...")
-        time.sleep(2)
+# Simple keyword extraction without NLTK
+def extract_keywords(text):
+    """Simple keyword extraction without NLTK dependencies"""
+    # Convert to lowercase and split into words
+    words = re.findall(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', text.lower())
+    
+    # Common SQL/database stop words to filter out
+    stop_words = {
+        'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
+        'by', 'from', 'up', 'about', 'into', 'through', 'during', 'before', 'after',
+        'above', 'below', 'between', 'among', 'all', 'any', 'both', 'each', 'few', 'more',
+        'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so',
+        'than', 'too', 'very', 'can', 'will', 'just', 'should', 'now', 'show', 'me', 'get',
+        'find', 'list', 'display', 'give', 'tell', 'what', 'where', 'when', 'how', 'why',
+        'who', 'which', 'that', 'this', 'these', 'those', 'i', 'you', 'he', 'she', 'it',
+        'we', 'they', 'them', 'their', 'there', 'here', 'is', 'are', 'was', 'were', 'be',
+        'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'done'
+    }
+    
+    # Filter out stop words and return unique keywords
+    keywords = [word for word in words if word not in stop_words and len(word) > 2]
+    return list(set(keywords))
 
-if not nltk_ready:
-    logging.error("Failed to initialize NLTK after 3 attempts")
-
-# Initialize RAKE only if NLTK is ready
-rake = None
-if nltk_ready:
-    try:
-        rake = Rake()
-        logging.info("RAKE initialized successfully")
-    except Exception as e:
-        logging.error(f"RAKE initialization failed: {e}")
-                          # keyword extractor
+# Groq client initialization
+from groq import Groq
+client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
 # ------------------------------------------------------------------#
 #  2. FLASK APP INIT                                                #
 # ------------------------------------------------------------------#
 app = Flask(__name__)
-
 CORS(app, origins=[
     "http://localhost:3000",
     "http://localhost:5173",
-    "https://sql-query-agent.vercel.app",  # Your exact Vercel URL
-    "https://*.vercel.app"  # Fallback for other Vercel deployments
-])                     # allow any front-end
+    "https://sql-query-agent.vercel.app"
+])
 
 # ------------------------------------------------------------------#
-#  3. DATABASE UTILS (uses database.py from your repo)              #
+#  3. DATABASE UTILS                                                #
 # ------------------------------------------------------------------#
 from database import list_all_tables, get_table_schema
 _schema_cache: dict | None = None
 
-# Get DATABASE_URL from environment variables
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 def load_db_schema(force_reload: bool = False) -> dict:
@@ -130,31 +102,27 @@ def clean_markdown_sql(text: str | None) -> str | None:
         txt = txt[:-3]
     return txt.strip()
 
-
 def relevant_schema(nl: str) -> str:
-    """Extract relevant schema based on natural language input with error handling"""
+    """Extract relevant schema using simple keyword matching"""
     try:
-        if rake is None:
-            logging.warning("RAKE not available, using fallback schema")
-            schema = load_db_schema()
-            return "\n".join(f"Table {t} columns: {', '.join(c)}" for t, c in schema.items())
-        
-        # Use RAKE for keyword extraction
-        rake.extract_keywords_from_text(nl)
-        kw = {k.lower() for k in rake.get_ranked_phrases()}
-        
+        # Use simple keyword extraction instead of RAKE
+        keywords = extract_keywords(nl)
         schema = load_db_schema()
         pieces = []
+        
         for tbl, cols in schema.items():
-            if kw & ({tbl.lower()} | {c.lower() for c in cols}):
+            # Check if any keyword matches table name or column names
+            table_keywords = {tbl.lower()} | {c.lower() for c in cols}
+            if any(keyword in table_keywords for keyword in keywords):
                 pieces.append(f"Table {tbl} columns: {', '.join(cols)}")
         
+        # If no specific matches, return all schema (fallback)
         return "\n".join(pieces) or "\n".join(
             f"Table {t} columns: {', '.join(c)}" for t, c in schema.items()
         )
     except Exception as e:
         logging.error(f"Error in relevant_schema: {e}")
-        # Fallback: return all schema
+        # Ultimate fallback: return all schema
         schema = load_db_schema()
         return "\n".join(f"Table {t} columns: {', '.join(c)}" for t, c in schema.items())
 
@@ -166,7 +134,7 @@ def ask_groq(prompt: str) -> str | None:
             temperature=0,
             max_tokens=500,
         )
-        return resp.choices.message.content  # ✅ access first choice
+        return resp.choices.message.content
 
     except Exception as e:
         logging.error("Groq API error: %s", e)
@@ -205,17 +173,30 @@ def fix_sql(bad_sql: str) -> str | None:
 # ------------------------------------------------------------------#
 #  5. ENDPOINTS                                                     #
 # ------------------------------------------------------------------#
+@app.route("/", methods=["GET"])
+def root():
+    return jsonify({
+        "message": "SQL Query Agent API is running",
+        "status": "online",
+        "version": "1.0.0",
+        "endpoints": {
+            "health": "/api/health",
+            "schema": "/api/schema", 
+            "generate_sql": "/api/generate-sql",
+            "correct_sql": "/api/correct-sql",
+            "validate_sql": "/api/validate-sql"
+        }
+    })
+
 @app.route("/api/health", methods=["GET"])
 def health():
     return jsonify(
         status="ok",
         groq_ready=bool(client.api_key),
         database_ready=bool(DATABASE_URL),
-        nltk_ready=nltk_ready,
-        rake_ready=rake is not None,
+        nltk_free=True,  # Indicate we're not using NLTK
         timestamp=time.time(),
     )
-
 
 @app.route("/api/schema", methods=["GET"])
 def schema():
@@ -254,29 +235,6 @@ def validate():
         is_valid=is_valid,
         formatted_sql=sqlparse.format(q, reindent=True, keyword_case="upper"),
     )
-
-
-# ------------------------------------------------------------------#
-#  6. ROOT ROUTE (for Railway deployment)                          #
-# ------------------------------------------------------------------#
-@app.route("/", methods=["GET"])
-def root():
-    """Root endpoint to provide basic API information"""
-    return jsonify({
-        "message": "SQL Query Agent API is running",
-        "status": "online",
-        "version": "1.0.0",
-        "endpoints": {
-            "health": "/api/health",
-            "schema": "/api/schema", 
-            "generate_sql": "/api/generate-sql",
-            "correct_sql": "/api/correct-sql",
-            "validate_sql": "/api/validate-sql"
-        },
-        "documentation": "Visit the frontend application to use the SQL Query Agent"
-    })
-
-
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
