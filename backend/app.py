@@ -127,6 +127,7 @@ def relevant_schema(nl: str) -> str:
         return "\n".join(f"Table {t} columns: {', '.join(c)}" for t, c in schema.items())
 
 def ask_groq(prompt: str) -> str | None:
+    """Make request to Groq API with proper error handling"""
     try:
         resp = client.chat.completions.create(
             model="llama3-70b-8192",
@@ -134,11 +135,43 @@ def ask_groq(prompt: str) -> str | None:
             temperature=0,
             max_tokens=500,
         )
-        return resp.choices.message.content
+        
+        # Correct way to access the response
+        if resp.choices and len(resp.choices) > 0:
+            return resp.choices[0].message.content
+        else:
+            logging.error("No choices in Groq API response")
+            return None
 
     except Exception as e:
-        logging.error("Groq API error: %s", e)
+        logging.error(f"Groq API error: {e}")
         return None
+
+def load_db_schema(force_reload: bool = False) -> dict:
+    """Load database schema with proper error handling"""
+    global _schema_cache
+    if _schema_cache and not force_reload:
+        return _schema_cache
+
+    if not DATABASE_URL:
+        logging.error("DATABASE_URL is not set. Cannot load schema.")
+        return {}
+    
+    schema: dict[str, list[str]] = {}
+    try:
+        tables = list_all_tables(DATABASE_URL)
+        for table in tables:
+            cols = get_table_schema(DATABASE_URL, table_name=table)
+            schema[table] = list(cols.keys())
+        
+        _schema_cache = schema
+        logging.info(f"Successfully loaded schema with {len(schema)} tables")
+        return schema
+    except Exception as e:
+        logging.error(f"Error loading database schema: {e}")
+        return {}
+
+
 
 def nl_to_sql(nl: str) -> str | None:
     schema_txt = relevant_schema(nl)
