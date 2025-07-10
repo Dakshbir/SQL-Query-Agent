@@ -127,16 +127,13 @@ def ask_groq(prompt: str) -> str | None:
             max_tokens=500,
         )
         
-        # Correct way to access the response
-        if resp.choices and len(resp.choices) > 0:
-            return resp.choices.message.content
-        else:
-            logging.error("No choices in Groq API response")
-            return None
+        # FIXED: Access the first choice's message content correctly
+        return resp.choices[0].message.content  # Add [0] to access first choice
 
     except Exception as e:
         logging.error(f"Groq API error: {e}")
         return None
+
 
 def nl_to_sql(nl: str) -> str | None:
     schema_txt = relevant_schema(nl)
