@@ -52,12 +52,13 @@ def load_db_schema(force_reload: bool = False) -> dict:
         return _schema_cache
 
     db_conf = {
-        "db_name": os.getenv("DB_NAME"),
-        "user": os.getenv("DB_USER"),
-        "password": os.getenv("DB_PASSWORD"),
-        "host": os.getenv("DB_HOST", "localhost"),
-        "port": os.getenv("DB_PORT", "5432"),
+        'db_name': os.getenv('DB_NAME'),
+        'user': os.getenv('DB_USER'),
+        'password': os.getenv('DB_PASSWORD'),  # This was missing!
+        'host': os.getenv('DB_HOST'),
+        'port': os.getenv('DB_PORT')
     }
+    
     schema: dict[str, list[str]] = {}
     for table in list_all_tables(**db_conf):
         cols = get_table_schema(table_name=table, **db_conf)
