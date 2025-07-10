@@ -60,13 +60,94 @@ def list_all_tables(db_url):
         cursor = conn.cursor()
         # Query to get all table names from the public schema
         cursor.execute("SELECT table_name FROM information_schema.tables WHERE table_schema='public'")
-        tables = [table[0] for table in cursor.fetchall()]
+        tables = [table for table in cursor.fetchall()]
         cursor.close()
         conn.close()
     except Exception as e:
         print(f"An error occurred while trying to list tables: {e}")
         
     return tables
+
+def get_table_schema(db_url, table_name=''):
+    """
+    Gets the schema (column names and data types) for a specific table.
+    
+    Args:
+        db_url (str): The full database connection URL.
+        table_name (str): The name of the table to get schema for.
+        
+    Returns:
+        dict: A dictionary mapping column names to their data types.
+    """
+    schema = {}
+    if not db_url:
+        print("Error: DATABASE_URL is not set. Cannot get table schema.")
+        return schema
+        
+    try:
+        conn = psycopg2.connect(db_url)
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = %s ORDER BY ordinal_position", 
+            (table_name,)
+        )
+        columns = cursor.fetchall()
+        schema = {col: col for col in columns}
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        print(f"An error occurred while getting schema for table {table_name}: {e}")
+        
+    return schema
+
+def delete_all_tables(db_url):
+    """
+    Deletes all tables and custom types from the database.
+    
+    Args:
+        db_url (str): The full database connection URL.
+    """
+    if not db_url:
+        print("Error: DATABASE_URL is not set. Cannot delete tables.")
+        return
+        
+    try:
+        conn = psycopg2.connect(db_url)
+        conn.autocommit = True
+        cursor = conn.cursor()
+        
+        # Get all tables
+        cursor.execute("""
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+            ORDER BY table_name;
+        """)
+        tables = cursor.fetchall()
+        
+        # Drop all tables with CASCADE
+        for table in tables:    
+            cursor.execute(f"DROP TABLE IF EXISTS {table} CASCADE")
+            print(f"Dropped table: {table}")
+            
+        # List of enums to delete
+        enums_to_delete = [
+            'wishlist_status_enum',
+            'priority_level_enum',
+            'added_from_source_enum'
+        ]
+        
+        # Drop custom types
+        for enum in enums_to_delete:
+            cursor.execute(f"DROP TYPE IF EXISTS {enum}")
+            print(f"Dropped enum: {enum}")
+            
+        cursor.close()
+        conn.close()
+        print("All tables and enums deleted successfully.")
+        
+    except Exception as e:
+        print(f"An error occurred while deleting tables: {e}")
 
 # This block will only run when you execute the script directly (e.g., `python database.py`)
 if __name__ == "__main__":
@@ -104,4 +185,3 @@ if __name__ == "__main__":
             print("VERIFICATION FAILED: No tables were found in the database.")
         
         print("\n--- Database Setup Complete ---")
-

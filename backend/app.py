@@ -1,3 +1,4 @@
+
 import os
 import json
 import time
@@ -22,7 +23,7 @@ except LookupError:
     nltk.download("stopwords")
     nltk.download("punkt")          # RAKE needs Punkt tokenizer too
 
-# Groq ≥ 0.28 fixes the “proxies” bug, so plain init works
+# Groq ≥ 0.28 fixes the "proxies" bug, so plain init works
 from groq import Groq
 client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
@@ -45,28 +46,30 @@ CORS(app, origins=[
 from database import list_all_tables, get_table_schema
 _schema_cache: dict | None = None
 
+# Get DATABASE_URL from environment variables
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 def load_db_schema(force_reload: bool = False) -> dict:
     global _schema_cache
     if _schema_cache and not force_reload:
         return _schema_cache
 
-    db_conf = {
-        'db_name': os.getenv('DB_NAME'),
-        'user': os.getenv('DB_USER'),
-        'password': os.getenv('DB_PASSWORD'),  # This was missing!
-        'host': os.getenv('DB_HOST'),
-        'port': os.getenv('DB_PORT')
-    }
+    if not DATABASE_URL:
+        logging.error("DATABASE_URL is not set. Cannot load schema.")
+        return {}
     
     schema: dict[str, list[str]] = {}
-    for table in list_all_tables(**db_conf):
-        cols = get_table_schema(table_name=table, **db_conf)
-        schema[table] = list(cols.keys())
-
-    _schema_cache = schema
-    return schema
-
+    try:
+        tables = list_all_tables(DATABASE_URL)
+        for table in tables:
+            cols = get_table_schema(DATABASE_URL, table_name=table)
+            schema[table] = list(cols.keys())
+        
+        _schema_cache = schema
+        return schema
+    except Exception as e:
+        logging.error(f"Error loading database schema: {e}")
+        return {}
 
 # ------------------------------------------------------------------#
 #  4. HELPERS                                                       #
@@ -98,7 +101,6 @@ def relevant_schema(nl: str) -> str:
         f"Table {t} columns: {', '.join(c)}" for t, c in schema.items()
     )
 
-
 def ask_groq(prompt: str) -> str | None:
     try:
         resp = client.chat.completions.create(
@@ -107,12 +109,11 @@ def ask_groq(prompt: str) -> str | None:
             temperature=0,
             max_tokens=500,
         )
-        return resp.choices[0].message.content  # ✅ access first choice
+        return resp.choices.message.content  # ✅ access first choice
 
     except Exception as e:
         logging.error("Groq API error: %s", e)
         return None
-
 
 def nl_to_sql(nl: str) -> str | None:
     schema_txt = relevant_schema(nl)
@@ -130,7 +131,6 @@ def nl_to_sql(nl: str) -> str | None:
         time.sleep(2 ** attempt)
     return None
 
-
 def fix_sql(bad_sql: str) -> str | None:
     prompt = (
         "You are an expert SQL assistant. Correct the following query and "
@@ -145,7 +145,6 @@ def fix_sql(bad_sql: str) -> str | None:
         time.sleep(2 ** attempt)
     return None
 
-
 # ------------------------------------------------------------------#
 #  5. ENDPOINTS                                                     #
 # ------------------------------------------------------------------#
@@ -154,15 +153,15 @@ def health():
     return jsonify(
         status="ok",
         groq_ready=bool(client.api_key),
+        database_ready=bool(DATABASE_URL),
         timestamp=time.time(),
     )
-
 
 @app.route("/api/schema", methods=["GET"])
 def schema():
     refresh = request.args.get("refresh") == "true"
-    return jsonify(schema=load_db_schema(refresh), success=True)
-
+    schema_data = load_db_schema(refresh)
+    return jsonify(schema=schema_data, success=True)
 
 @app.route("/api/generate-sql", methods=["POST"])
 def gen_sql():
@@ -174,7 +173,6 @@ def gen_sql():
         return jsonify(success=False, error="Failed to generate SQL"), 500
     return jsonify(success=True, sql=sql, nl_query=nl)
 
-
 @app.route("/api/correct-sql", methods=["POST"])
 def corr_sql():
     bad_sql = request.json.get("query", "").strip()
@@ -184,7 +182,6 @@ def corr_sql():
     if not sql:
         return jsonify(success=False, error="Failed to correct SQL"), 500
     return jsonify(success=True, corrected_sql=sql, original_sql=bad_sql)
-
 
 @app.route("/api/validate-sql", methods=["POST"])
 def validate():
@@ -197,7 +194,6 @@ def validate():
         is_valid=is_valid,
         formatted_sql=sqlparse.format(q, reindent=True, keyword_case="upper"),
     )
-
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
