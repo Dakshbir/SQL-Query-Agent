@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Database, Wand2, Wrench, Copy, Download, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { useGenerateSQL, useCorrectSQL, useSchema } from './hooks/useApi';
 import { cn } from './utils/cn';
 
-type ActiveTab = 'generator' | 'corrector' | 'schema';
+export type ActiveTab = 'generator' | 'corrector' | 'schema';
 
 function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('generator');
@@ -11,7 +11,7 @@ function App() {
   const [sqlToCorrect, setSqlToCorrect] = useState('');
   const [generatedSQL, setGeneratedSQL] = useState('');
   const [correctedSQL, setCorrectedSQL] = useState('');
-  const [schemaData, setSchemaData] = useState<any>(null);
+  const [schemaData, setSchemaData] = useState<Record<string, string[]> | null>(null);
 
   const { generateSQL, loading: generateLoading, error: generateError } = useGenerateSQL();
   const { correctSQL, loading: correctLoading, error: correctError } = useCorrectSQL();
@@ -58,8 +58,12 @@ function App() {
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error);
+    }
   };
 
   const downloadSQL = (sql: string, filename: string) => {
@@ -68,7 +72,9 @@ function App() {
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
@@ -79,31 +85,35 @@ function App() {
   ];
 
   return (
-    <div className="min-h-screen p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8 animate-fade-in">
           <div className="flex items-center justify-center space-x-3 mb-4">
-            <div className="p-3 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl">
+            <div className="p-3 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl shadow-lg">
               <Database className="h-8 w-8 text-white" />
             </div>
-            <h1 className="text-4xl font-bold gradient-text">SQL Query Agent</h1>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              SQL Query Agent
+            </h1>
           </div>
-          <p className="text-xl text-gray-600">AI-powered database assistant for generating, correcting, and exploring SQL</p>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            AI-powered database assistant for generating, correcting, and exploring SQL queries
+          </p>
         </div>
 
         {/* Tab Navigation */}
         <div className="flex justify-center mb-8">
           <div className="bg-white rounded-xl p-2 shadow-lg border border-gray-100">
             <div className="flex space-x-2">
-              {tabs.map(({ id, label, icon: Icon, color }) => (
+              {tabs.map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
                   onClick={() => setActiveTab(id)}
                   className={cn(
                     'flex items-center space-x-2 px-6 py-3 rounded-lg font-medium transition-all duration-200',
                     activeTab === id
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md'
+                      ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-md transform scale-105'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                   )}
                 >
@@ -120,7 +130,7 @@ function App() {
           {/* SQL Generator */}
           {activeTab === 'generator' && (
             <div className="space-y-6">
-              <div className="card p-8">
+              <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
                   <Wand2 className="h-6 w-6 text-blue-600 mr-3" />
                   Natural Language to SQL
@@ -134,19 +144,19 @@ function App() {
                     <textarea
                       value={naturalLanguage}
                       onChange={(e) => setNaturalLanguage(e.target.value)}
-                      placeholder="Example: Show me all users who registered in the last 30 days"
-                      className="input-field h-32 resize-none"
+                      placeholder="Example: Show me all customers from New York who made orders in the last 30 days"
+                      className="w-full h-32 px-4 py-3 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     />
                   </div>
                   
                   <div className="flex justify-between items-center">
                     <p className="text-sm text-gray-500">
-                      Be specific about tables, columns, and conditions
+                      Be specific about tables, columns, and conditions for better results
                     </p>
                     <button
                       onClick={handleGenerate}
                       disabled={!naturalLanguage.trim() || generateLoading}
-                      className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                      className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg font-medium hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105"
                     >
                       {generateLoading ? (
                         <>
@@ -165,7 +175,7 @@ function App() {
 
                 {generateError && (
                   <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
-                    <XCircle className="h-5 w-5 text-red-600" />
+                    <XCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
                     <p className="text-red-800">{generateError}</p>
                   </div>
                 )}
@@ -180,41 +190,43 @@ function App() {
                       <div className="flex space-x-2">
                         <button
                           onClick={() => copyToClipboard(generatedSQL)}
-                          className="btn-secondary flex items-center space-x-2"
+                          className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                         >
                           <Copy className="h-4 w-4" />
                           <span>Copy</span>
                         </button>
                         <button
                           onClick={() => downloadSQL(generatedSQL, 'generated-query.sql')}
-                          className="btn-secondary flex items-center space-x-2"
+                          className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                         >
                           <Download className="h-4 w-4" />
                           <span>Download</span>
                         </button>
                       </div>
                     </div>
-                    <div className="bg-gray-50 rounded-lg p-4 font-mono text-sm overflow-x-auto border">
-                      <pre className="whitespace-pre-wrap">{generatedSQL}</pre>
+                    <div className="bg-gray-50 rounded-lg p-4 border">
+                      <pre className="font-mono text-sm overflow-x-auto whitespace-pre-wrap text-gray-800">
+                        {generatedSQL}
+                      </pre>
                     </div>
                   </div>
                 )}
               </div>
 
               {/* Examples */}
-              <div className="card p-6">
+              <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Example Queries</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {[
                     "Show me all customers from New York",
                     "Find the top 10 products by sales",
-                    "List users who haven't logged in for 30 days",
+                    "List customers who haven't placed orders recently",
                     "Calculate total revenue by month"
                   ].map((example, index) => (
                     <button
                       key={index}
                       onClick={() => setNaturalLanguage(example)}
-                      className="text-left p-3 bg-blue-50 rounded-lg border border-blue-200 hover:border-blue-300 hover:bg-blue-100 transition-colors"
+                      className="text-left p-3 bg-blue-50 rounded-lg border border-blue-200 hover:border-blue-300 hover:bg-blue-100 transition-all"
                     >
                       <p className="text-sm text-gray-700">{example}</p>
                     </button>
@@ -227,7 +239,7 @@ function App() {
           {/* SQL Corrector */}
           {activeTab === 'corrector' && (
             <div className="space-y-6">
-              <div className="card p-8">
+              <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
                   <Wrench className="h-6 w-6 text-purple-600 mr-3" />
                   SQL Query Corrector
@@ -241,19 +253,19 @@ function App() {
                     <textarea
                       value={sqlToCorrect}
                       onChange={(e) => setSqlToCorrect(e.target.value)}
-                      placeholder="Example: SELEC * FRM users WHER id = 1"
-                      className="input-field h-32 resize-none font-mono text-sm"
+                      placeholder="Example: SELEC * FRM customerinfo WHER person_first_name = 'John'"
+                      className="w-full h-32 px-4 py-3 border border-gray-300 rounded-lg resize-none font-mono text-sm focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                     />
                   </div>
                   
                   <div className="flex justify-between items-center">
                     <p className="text-sm text-gray-500">
-                      Paste your broken SQL query and we'll fix syntax errors
+                      Paste your broken SQL query and we'll fix syntax and logic errors
                     </p>
                     <button
                       onClick={handleCorrect}
                       disabled={!sqlToCorrect.trim() || correctLoading}
-                      className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+                      className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg font-medium hover:from-purple-700 hover:to-pink-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:scale-105"
                     >
                       {correctLoading ? (
                         <>
@@ -272,7 +284,7 @@ function App() {
 
                 {correctError && (
                   <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
-                    <XCircle className="h-5 w-5 text-red-600" />
+                    <XCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
                     <p className="text-red-800">{correctError}</p>
                   </div>
                 )}
@@ -287,29 +299,31 @@ function App() {
                       <div className="flex space-x-2">
                         <button
                           onClick={() => copyToClipboard(correctedSQL)}
-                          className="btn-secondary flex items-center space-x-2"
+                          className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                         >
                           <Copy className="h-4 w-4" />
                           <span>Copy</span>
                         </button>
                         <button
                           onClick={() => downloadSQL(correctedSQL, 'corrected-query.sql')}
-                          className="btn-secondary flex items-center space-x-2"
+                          className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                         >
                           <Download className="h-4 w-4" />
                           <span>Download</span>
                         </button>
                       </div>
                     </div>
-                    <div className="bg-gray-50 rounded-lg p-4 font-mono text-sm overflow-x-auto border">
-                      <pre className="whitespace-pre-wrap">{correctedSQL}</pre>
+                    <div className="bg-gray-50 rounded-lg p-4 border">
+                      <pre className="font-mono text-sm overflow-x-auto whitespace-pre-wrap text-gray-800">
+                        {correctedSQL}
+                      </pre>
                     </div>
                   </div>
                 )}
               </div>
 
               {/* Common Errors */}
-              <div className="card p-6">
+              <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Common SQL Errors We Fix</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
@@ -338,7 +352,7 @@ function App() {
           {/* Schema Explorer */}
           {activeTab === 'schema' && (
             <div className="space-y-6">
-              <div className="card p-8">
+              <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
                   <Database className="h-6 w-6 text-green-600 mr-3" />
                   Database Schema Explorer
@@ -347,7 +361,7 @@ function App() {
                 {schemaLoading && (
                   <div className="flex items-center justify-center py-12">
                     <div className="text-center">
-                      <Loader2 className="h-8 w-8 animate-spin text-primary-600 mx-auto mb-4" />
+                      <Loader2 className="h-8 w-8 animate-spin text-green-600 mx-auto mb-4" />
                       <p className="text-gray-600">Loading database schema...</p>
                     </div>
                   </div>
@@ -355,7 +369,7 @@ function App() {
 
                 {schemaError && (
                   <div className="p-4 bg-red-50 border border-red-200 rounded-lg flex items-center space-x-2">
-                    <XCircle className="h-5 w-5 text-red-600" />
+                    <XCircle className="h-5 w-5 text-red-600 flex-shrink-0" />
                     <p className="text-red-800">{schemaError}</p>
                   </div>
                 )}
@@ -369,8 +383,11 @@ function App() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {Object.entries(schemaData).map(([tableName, columns]: [string, any]) => (
-                        <div key={tableName} className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                      {Object.entries(schemaData).map(([tableName, columns]) => (
+                        <div 
+                          key={tableName} 
+                          className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md hover:border-green-300 transition-all"
+                        >
                           <div className="flex items-center space-x-2 mb-4">
                             <Database className="h-5 w-5 text-green-600" />
                             <h3 className="text-lg font-semibold text-gray-900">{tableName}</h3>
@@ -381,9 +398,9 @@ function App() {
                           </p>
                           
                           <div className="space-y-2 max-h-32 overflow-y-auto">
-                            {columns.map((column: string, index: number) => (
+                            {columns.map((column, index) => (
                               <div key={index} className="flex items-center space-x-2 py-1">
-                                <div className="w-2 h-2 bg-blue-400 rounded-full" />
+                                <div className="w-2 h-2 bg-blue-400 rounded-full flex-shrink-0" />
                                 <span className="text-sm text-gray-700 font-mono">{column}</span>
                               </div>
                             ))}
