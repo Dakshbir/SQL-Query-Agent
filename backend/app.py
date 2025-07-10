@@ -13,21 +13,62 @@ import nltk
 # ------------------------------------------------------------------#
 #  1. ENV & LIB SET-UP                                              #
 # ------------------------------------------------------------------#
-load_dotenv()                                    # reads .env
+load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
-# ensure stop-words are available for RAKE
-try:
-    nltk.data.find("corpora/stopwords")
-except LookupError:
-    nltk.download("stopwords")
-    nltk.download("punkt")          # RAKE needs Punkt tokenizer too
+# Enhanced NLTK setup with error handling
+def setup_nltk():
+    """Setup NLTK with proper error handling and retries"""
+    try:
+        # Ensure NLTK data directory exists
+        nltk_data_dir = '/root/nltk_data'
+        if not os.path.exists(nltk_data_dir):
+            os.makedirs(nltk_data_dir, exist_ok=True)
+        
+        # Download required packages with retries
+        packages = ['stopwords', 'punkt']
+        for package in packages:
+            try:
+                nltk.data.find(f'tokenizers/{package}')
+                logging.info(f"NLTK package {package} already available")
+            except LookupError:
+                logging.info(f"Downloading NLTK package: {package}")
+                nltk.download(package, quiet=True)
+                time.sleep(1)  # Brief pause between downloads
+        
+        # Verify punkt tokenizer is working
+        from nltk.tokenize import sent_tokenize
+        test_text = "This is a test sentence. This is another sentence."
+        sentences = sent_tokenize(test_text)
+        logging.info(f"NLTK tokenizer test successful: {len(sentences)} sentences")
+        
+        return True
+    except Exception as e:
+        logging.error(f"NLTK setup failed: {e}")
+        return False
 
-# Groq ≥ 0.28 fixes the "proxies" bug, so plain init works
-from groq import Groq
-client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+# Initialize NLTK with retries
+nltk_ready = False
+for attempt in range(3):
+    if setup_nltk():
+        nltk_ready = True
+        break
+    else:
+        logging.warning(f"NLTK setup attempt {attempt + 1} failed, retrying...")
+        time.sleep(2)
 
-rake = Rake()                                   # keyword extractor
+if not nltk_ready:
+    logging.error("Failed to initialize NLTK after 3 attempts")
+
+# Initialize RAKE only if NLTK is ready
+rake = None
+if nltk_ready:
+    try:
+        rake = Rake()
+        logging.info("RAKE initialized successfully")
+    except Exception as e:
+        logging.error(f"RAKE initialization failed: {e}")
+                          # keyword extractor
 
 # ------------------------------------------------------------------#
 #  2. FLASK APP INIT                                                #
@@ -91,16 +132,31 @@ def clean_markdown_sql(text: str | None) -> str | None:
 
 
 def relevant_schema(nl: str) -> str:
-    rake.extract_keywords_from_text(nl)
-    kw = {k.lower() for k in rake.get_ranked_phrases()}
-    schema = load_db_schema()
-    pieces = []
-    for tbl, cols in schema.items():
-        if kw & ({tbl.lower()} | {c.lower() for c in cols}):
-            pieces.append(f"Table {tbl} columns: {', '.join(cols)}")
-    return "\n".join(pieces) or "\n".join(
-        f"Table {t} columns: {', '.join(c)}" for t, c in schema.items()
-    )
+    """Extract relevant schema based on natural language input with error handling"""
+    try:
+        if rake is None:
+            logging.warning("RAKE not available, using fallback schema")
+            schema = load_db_schema()
+            return "\n".join(f"Table {t} columns: {', '.join(c)}" for t, c in schema.items())
+        
+        # Use RAKE for keyword extraction
+        rake.extract_keywords_from_text(nl)
+        kw = {k.lower() for k in rake.get_ranked_phrases()}
+        
+        schema = load_db_schema()
+        pieces = []
+        for tbl, cols in schema.items():
+            if kw & ({tbl.lower()} | {c.lower() for c in cols}):
+                pieces.append(f"Table {tbl} columns: {', '.join(cols)}")
+        
+        return "\n".join(pieces) or "\n".join(
+            f"Table {t} columns: {', '.join(c)}" for t, c in schema.items()
+        )
+    except Exception as e:
+        logging.error(f"Error in relevant_schema: {e}")
+        # Fallback: return all schema
+        schema = load_db_schema()
+        return "\n".join(f"Table {t} columns: {', '.join(c)}" for t, c in schema.items())
 
 def ask_groq(prompt: str) -> str | None:
     try:
@@ -155,8 +211,11 @@ def health():
         status="ok",
         groq_ready=bool(client.api_key),
         database_ready=bool(DATABASE_URL),
+        nltk_ready=nltk_ready,
+        rake_ready=rake is not None,
         timestamp=time.time(),
     )
+
 
 @app.route("/api/schema", methods=["GET"])
 def schema():
