@@ -195,6 +195,29 @@ def validate():
         formatted_sql=sqlparse.format(q, reindent=True, keyword_case="upper"),
     )
 
+
+# ------------------------------------------------------------------#
+#  6. ROOT ROUTE (for Railway deployment)                          #
+# ------------------------------------------------------------------#
+@app.route("/", methods=["GET"])
+def root():
+    """Root endpoint to provide basic API information"""
+    return jsonify({
+        "message": "SQL Query Agent API is running",
+        "status": "online",
+        "version": "1.0.0",
+        "endpoints": {
+            "health": "/api/health",
+            "schema": "/api/schema", 
+            "generate_sql": "/api/generate-sql",
+            "correct_sql": "/api/correct-sql",
+            "validate_sql": "/api/validate-sql"
+        },
+        "documentation": "Visit the frontend application to use the SQL Query Agent"
+    })
+
+
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
