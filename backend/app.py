@@ -37,9 +37,9 @@ app = Flask(__name__)
 CORS(app, origins=[
     "http://localhost:3000",
     "http://localhost:5173",
-    "https://sql-query-agent.vercel.app",  # Your actual Vercel URL
-    "https://*.vercel.app"  # Allow all Vercel subdomains
-])                      # allow any front-end
+    "https://sql-query-agent-4ij9leb0o-dakshbirs-projects.vercel.app",  # Your exact Vercel URL
+    "https://*.vercel.app"  # Fallback for other Vercel deployments
+])                     # allow any front-end
 
 # ------------------------------------------------------------------#
 #  3. DATABASE UTILS (uses database.py from your repo)              #
