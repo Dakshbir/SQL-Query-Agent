@@ -117,22 +117,17 @@ def relevant_schema(nl: str) -> str:
         schema = load_db_schema()
         return "\n".join(f"Table {t} columns: {', '.join(c)}" for t, c in schema.items())
 
-def ask_groq(prompt: str) -> str | None:
-    """Make request to Groq API with proper error handling - FIXED"""
-    try:
-        resp = client.chat.completions.create(
-            model="llama3-70b-8192",
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0,
-            max_tokens=500,
-        )
-        
-        # CORRECT: Access the first choice's message content
-        return resp.choices.message.content
+@app.route("/api/health", methods=["GET"])
+def health():
+    """Enhanced health check with detailed status"""
+    return jsonify(
+        status="ok",
+        groq_ready=bool(client.api_key),
+        database_ready=bool(DATABASE_URL),
+        database_connected=bool(_schema_cache),  # Check if schema loaded
+        timestamp=time.time(),
+    )
 
-    except Exception as e:
-        logging.error(f"Groq API error: {e}")
-        return None
 
 def nl_to_sql(nl: str) -> str | None:
     schema_txt = relevant_schema(nl)
