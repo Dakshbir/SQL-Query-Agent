@@ -14,17 +14,11 @@ from flask_cors import CORS
 load_dotenv()
 logging.basicConfig(level=logging.INFO)
 
-# Remove NLTK/RAKE imports and initialization
-# from rake_nltk import Rake
-# import nltk
-
 # Simple keyword extraction without NLTK
 def extract_keywords(text):
     """Simple keyword extraction without NLTK dependencies"""
-    # Convert to lowercase and split into words
     words = re.findall(r'\b[a-zA-Z_][a-zA-Z0-9_]*\b', text.lower())
     
-    # Common SQL/database stop words to filter out
     stop_words = {
         'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
         'by', 'from', 'up', 'about', 'into', 'through', 'during', 'before', 'after',
@@ -37,7 +31,6 @@ def extract_keywords(text):
         'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'done'
     }
     
-    # Filter out stop words and return unique keywords
     keywords = [word for word in words if word not in stop_words and len(word) > 2]
     return list(set(keywords))
 
@@ -64,6 +57,7 @@ _schema_cache: dict | None = None
 DATABASE_URL = os.getenv("DATABASE_URL")
 
 def load_db_schema(force_reload: bool = False) -> dict:
+    """Load database schema with proper error handling - SINGLE DEFINITION"""
     global _schema_cache
     if _schema_cache and not force_reload:
         return _schema_cache
@@ -80,6 +74,7 @@ def load_db_schema(force_reload: bool = False) -> dict:
             schema[table] = list(cols.keys())
         
         _schema_cache = schema
+        logging.info(f"Successfully loaded schema with {len(schema)} tables")
         return schema
     except Exception as e:
         logging.error(f"Error loading database schema: {e}")
@@ -105,29 +100,25 @@ def clean_markdown_sql(text: str | None) -> str | None:
 def relevant_schema(nl: str) -> str:
     """Extract relevant schema using simple keyword matching"""
     try:
-        # Use simple keyword extraction instead of RAKE
         keywords = extract_keywords(nl)
         schema = load_db_schema()
         pieces = []
         
         for tbl, cols in schema.items():
-            # Check if any keyword matches table name or column names
             table_keywords = {tbl.lower()} | {c.lower() for c in cols}
             if any(keyword in table_keywords for keyword in keywords):
                 pieces.append(f"Table {tbl} columns: {', '.join(cols)}")
         
-        # If no specific matches, return all schema (fallback)
         return "\n".join(pieces) or "\n".join(
             f"Table {t} columns: {', '.join(c)}" for t, c in schema.items()
         )
     except Exception as e:
         logging.error(f"Error in relevant_schema: {e}")
-        # Ultimate fallback: return all schema
         schema = load_db_schema()
         return "\n".join(f"Table {t} columns: {', '.join(c)}" for t, c in schema.items())
 
 def ask_groq(prompt: str) -> str | None:
-    """Make request to Groq API with proper error handling"""
+    """Make request to Groq API with proper error handling - FIXED"""
     try:
         resp = client.chat.completions.create(
             model="llama3-70b-8192",
@@ -136,42 +127,12 @@ def ask_groq(prompt: str) -> str | None:
             max_tokens=500,
         )
         
-        # Correct way to access the response
-        if resp.choices and len(resp.choices) > 0:
-            return resp.choices[0].message.content
-        else:
-            logging.error("No choices in Groq API response")
-            return None
+        # CORRECT: Access the first choice's message content
+        return resp.choices.message.content
 
     except Exception as e:
         logging.error(f"Groq API error: {e}")
         return None
-
-def load_db_schema(force_reload: bool = False) -> dict:
-    """Load database schema with proper error handling"""
-    global _schema_cache
-    if _schema_cache and not force_reload:
-        return _schema_cache
-
-    if not DATABASE_URL:
-        logging.error("DATABASE_URL is not set. Cannot load schema.")
-        return {}
-    
-    schema: dict[str, list[str]] = {}
-    try:
-        tables = list_all_tables(DATABASE_URL)
-        for table in tables:
-            cols = get_table_schema(DATABASE_URL, table_name=table)
-            schema[table] = list(cols.keys())
-        
-        _schema_cache = schema
-        logging.info(f"Successfully loaded schema with {len(schema)} tables")
-        return schema
-    except Exception as e:
-        logging.error(f"Error loading database schema: {e}")
-        return {}
-
-
 
 def nl_to_sql(nl: str) -> str | None:
     schema_txt = relevant_schema(nl)
@@ -227,7 +188,7 @@ def health():
         status="ok",
         groq_ready=bool(client.api_key),
         database_ready=bool(DATABASE_URL),
-        nltk_free=True,  # Indicate we're not using NLTK
+        nltk_free=True,
         timestamp=time.time(),
     )
 
