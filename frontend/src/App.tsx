@@ -85,7 +85,7 @@ function App() {
   ];
 
   return (
-    <div className="min-h-screen p-6 bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-10 animate-fade-in">
@@ -111,7 +111,7 @@ function App() {
                   key={id}
                   onClick={() => setActiveTab(id)}
                   className={cn(
-                    'flex items-center space-x-3 px-8 py-3 rounded-full font-semibold transition-all duration-300 select-none cursor-pointer',
+                    'flex items-center space-x-3 px-8 py-3 rounded-full font-semibold transition-all duration-300 select-none',
                     activeTab === id
                       ? `bg-gradient-to-r from-purple-600 to-pink-500 text-white shadow-lg scale-105 ${color}`
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
@@ -142,10 +142,10 @@ function App() {
                       Describe your query
                     </label>
                     <textarea
+                      className="w-full h-36 px-5 py-4 border border-gray-300 rounded-xl shadow-sm resize-none focus:outline-none focus:ring-4 focus:ring-purple-400 transition"
+                      placeholder="e.g. Show me all customers from New York who made orders in the last 30 days"
                       value={naturalLanguage}
                       onChange={e => setNaturalLanguage(e.target.value)}
-                      placeholder="e.g. Show me all customers from New York who made orders in the last 30 days"
-                      className="w-full h-36 px-5 py-4 border border-gray-300 rounded-xl shadow-sm resize-none focus:outline-none focus:ring-4 focus:ring-purple-400 transition"
                     />
                   </div>
 
@@ -154,9 +154,9 @@ function App() {
                       Be as specific as possible for better results
                     </p>
                     <button
-                      onClick={handleGenerate}
+                      className="inline-flex items-center space-x-3 px-6 py-3 font-semibold text-white rounded-xl shadow-lg bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-transform transform hover:scale-105"
                       disabled={!naturalLanguage.trim() || generateLoading}
-                      className="inline-flex items-center space-x-3 bg-gradient-to-r from-purple-600 to-pink-500 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:from-purple-700 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-transform transform hover:scale-105"
+                      onClick={handleGenerate}
                     >
                       {generateLoading ? (
                         <>
@@ -173,9 +173,9 @@ function App() {
                   </div>
 
                   {generateError && (
-                    <div className="mt-6 p-4 bg-red-100 border border-red-400 rounded-lg flex items-center space-x-3">
+                    <div className="mt-6 p-6 text-red-700 bg-red-100 border border-red-300 rounded-lg flex items-center space-x-3">
                       <XCircle className="h-6 w-6 text-red-600" />
-                      <p className="text-red-700 font-semibold">{generateError}</p>
+                      <span>{generateError}</span>
                     </div>
                   )}
 
@@ -188,15 +188,15 @@ function App() {
                         </h3>
                         <div className="flex space-x-4">
                           <button
+                            className="inline-flex items-center space-x-3 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg shadow hover:bg-gray-200 transition"
                             onClick={() => copyToClipboard(generatedSQL)}
-                            className="inline-flex items-center space-x-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg shadow hover:bg-gray-200 transition"
                           >
                             <Copy className="h-5 w-5" />
                             <span>Copy</span>
                           </button>
                           <button
+                            className="inline-flex items-center space-x-3 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg shadow hover:bg-gray-200 transition"
                             onClick={() => downloadSQL(generatedSQL, 'generated-query.sql')}
-                            className="inline-flex items-center space-x-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg shadow hover:bg-gray-200 transition"
                           >
                             <Download className="h-5 w-5" />
                             <span>Download</span>
@@ -212,7 +212,7 @@ function App() {
               </div>
 
               <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8">
-                <h3 className="text-lg font-semibold text-gray-900 mb-6">Examples</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-6">Example Queries</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {[
                     "Show me all customers from New York",
@@ -222,8 +222,8 @@ function App() {
                   ].map((example, idx) => (
                     <button
                       key={idx}
+                      className="p-4 text-left rounded-lg bg-gradient-to-r from-purple-100 to-pink-100 border border-purple-300 hover:from-purple-200 hover:to-pink-200 transition"
                       onClick={() => setNaturalLanguage(example)}
-                      className="text-left p-4 bg-gradient-to-r from-purple-100 to-pink-100 rounded-xl border border-purple-300 hover:from-purple-200 hover:to-pink-200 transition"
                     >
                       {example}
                     </button>
@@ -245,13 +245,13 @@ function App() {
                 <div className="space-y-6">
                   <div>
                     <label className="block text-lg font-medium text-gray-700 mb-3">
-                      Paste your SQL query that needs correction
+                      Paste your query to fix
                     </label>
                     <textarea
+                      className="w-full h-36 px-5 py-4 border border-gray-300 rounded-xl shadow-sm resize-none font-mono focus:outline-none focus:ring-4 focus:ring-pink-400 transition"
+                      placeholder="e.g. SELEC * FRM customer WHERE id = 1"
                       value={sqlToCorrect}
                       onChange={e => setSqlToCorrect(e.target.value)}
-                      placeholder="e.g. SELEC * FRM customer WHERE id = 1"
-                      className="w-full h-36 px-5 py-4 border border-gray-300 rounded-xl shadow-sm resize-none font-mono focus:outline-none focus:ring-4 focus:ring-pink-400 transition"
                     />
                   </div>
 
@@ -260,9 +260,9 @@ function App() {
                       Paste broken SQL and get corrected version
                     </p>
                     <button
-                      onClick={handleCorrect}
+                      className="inline-flex items-center space-x-3 px-6 py-3 font-semibold text-white rounded-xl shadow-lg bg-gradient-to-r from-pink-600 to-purple-600 hover:from-pink-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-transform transform hover:scale-105"
                       disabled={!sqlToCorrect.trim() || correctLoading}
-                      className="inline-flex items-center space-x-3 bg-gradient-to-r from-pink-600 to-purple-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:from-pink-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-transform transform hover:scale-105"
+                      onClick={handleCorrect}
                     >
                       {correctLoading ? (
                         <>
@@ -279,9 +279,9 @@ function App() {
                   </div>
 
                   {correctError && (
-                    <div className="mt-6 p-4 bg-red-100 border border-red-400 rounded-lg flex items-center space-x-3">
+                    <div className="mt-6 p-6 text-red-700 bg-red-100 border border-red-300 rounded-lg flex items-center space-x-3">
                       <XCircle className="h-6 w-6 text-red-600" />
-                      <p className="text-red-700 font-semibold">{correctError}</p>
+                      <span>{correctError}</span>
                     </div>
                   )}
 
@@ -294,15 +294,15 @@ function App() {
                         </h3>
                         <div className="flex space-x-4">
                           <button
+                            className="inline-flex items-center space-x-3 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg shadow hover:bg-gray-200 transition"
                             onClick={() => copyToClipboard(correctedSQL)}
-                            className="inline-flex items-center space-x-3 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg shadow hover:bg-gray-200 transition"
                           >
                             <Copy className="h-5 w-5" />
                             <span>Copy</span>
                           </button>
                           <button
+                            className="inline-flex items-center space-x-3 px-4 py-2 text-gray-700 bg-gray-100 rounded-lg shadow hover:bg-gray-200 transition"
                             onClick={() => downloadSQL(correctedSQL, 'corrected-query.sql')}
-                            className="inline-flex items-center space-x-3 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg shadow hover:bg-gray-200 transition"
                           >
                             <Download className="h-5 w-5" />
                             <span>Download</span>
@@ -318,7 +318,7 @@ function App() {
               </div>
 
               <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-8">
-                <h3 className="text-lg font-semibold text-gray-900 mb-6">Common Errors</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-6">Common SQL Errors We Fix</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <h4 className="font-medium text-gray-800 mb-3">Syntax Errors</h4>
@@ -360,9 +360,9 @@ function App() {
                 )}
 
                 {schemaError && (
-                  <div className="p-6 bg-red-100 border border-red-400 rounded-lg flex items-center space-x-4">
-                    <XCircle className="h-8 w-8 text-red-600" />
-                    <p className="text-red-700 font-semibold">{schemaError}</p>
+                  <div className="p-6 text-red-700 bg-red-100 border border-red-300 rounded-lg flex items-center space-x-3">
+                    <XCircle className="h-6 w-6 text-red-600" />
+                    <span>{schemaError}</span>
                   </div>
                 )}
 
@@ -376,16 +376,16 @@ function App() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                       {Object.entries(schemaData).map(([tableName, columns]) => (
-                        <div key={tableName} className="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg transition">
+                        <div key={tableName} className="bg-white rounded-xl shadow-md border border-gray-200 p-6 hover:shadow-lg hover:border-green-300 transition">
                           <div className="flex items-center space-x-3 mb-4">
                             <Database className="h-6 w-6 text-green-600" />
                             <h3 className="text-xl font-semibold text-gray-900">{tableName}</h3>
                           </div>
                           <p className="text-gray-700 mb-3">{columns.length} columns</p>
-                          <div className="max-h-40 overflow-y-auto">
+                          <div className="max-h-40 overflow-y-auto space-y-1">
                             {columns.map((col, idx) => (
                               <div key={idx} className="flex items-center space-x-2 py-1">
-                                <div className="w-3 h-3 bg-green-400 rounded-full" />
+                                <div className="w-3 h-3 bg-green-400 rounded-full flex-shrink-0" />
                                 <span className="text-sm font-mono text-gray-800">{col}</span>
                               </div>
                             ))}
