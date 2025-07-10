@@ -3,7 +3,7 @@ import { useState } from 'react';
 
 const api = axios.create({
   baseURL: process.env.NODE_ENV === 'production' 
-    ? 'https://your-railway-backend.up.railway.app/api'
+    ? 'https://sql-query-agent-production.up.railway.app/api'  // Your actual Railway URL
     : '/api',
   headers: {
     'Content-Type': 'application/json',

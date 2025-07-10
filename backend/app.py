@@ -33,12 +33,13 @@ rake = Rake()                                   # keyword extractor
 #  2. FLASK APP INIT                                                #
 # ------------------------------------------------------------------#
 app = Flask(__name__)
+
 CORS(app, origins=[
-    "http://localhost:3000",  # local development
-    "http://localhost:5173",  # vite dev server
-    "https://your-app-name.vercel.app",  # production frontend (update after deployment)
-    "https://*.vercel.app"  # all vercel apps for testing
-])                       # allow any front-end
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "https://sql-query-agent.vercel.app",  # Your actual Vercel URL
+    "https://*.vercel.app"  # Allow all Vercel subdomains
+])                      # allow any front-end
 
 # ------------------------------------------------------------------#
 #  3. DATABASE UTILS (uses database.py from your repo)              #
